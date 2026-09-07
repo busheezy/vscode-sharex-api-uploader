@@ -15,6 +15,10 @@ The command uploads the entire current document, including unsaved edits. It sen
 
 Uploads time out after 30 seconds. Redirects are rejected to avoid forwarding an API key to another origin; configure the final upload URL. Success is reported after the link reaches the clipboard.
 
+## Migrating an existing installation
+
+See the [September 7, 2026 migration guide](MIGRATION.md) for upgrading from before that day’s changes, including verification and rollback.
+
 ## Development
 
 Use Node.js 24.19+ within 24.x and pnpm 12.3.4.
