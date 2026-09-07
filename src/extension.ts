@@ -1,98 +1,110 @@
+import { basename } from "node:path";
 import { window, ExtensionContext, commands, workspace, env } from "vscode";
 import AuthSettings from "./AuthSettings";
-import * as FormData from "form-data";
-import got from "got";
 
-interface Paste {
-  deleteKey: string;
-  deletePass: string;
-  fileName: string;
-  fileType: string;
-  id: number;
-  stringId: string;
+function getConfiguredUrl(key: string): URL {
+  const configuration = workspace.getConfiguration("share");
+  const value = configuration.get<string>(key);
+
+  if (!value) {
+    throw new Error(`Set share.${key} in Settings before uploading.`);
+  }
+
+  const url = new URL(value);
+  const isHttp = url.protocol === "http:" || url.protocol === "https:";
+
+  if (!isHttp || url.username || url.password) {
+    throw new Error(`share.${key} must be an HTTP or HTTPS URL without credentials.`);
+  }
+
+  return url;
+}
+
+function getPasteId(response: unknown): string {
+  if (!response || typeof response !== "object" || !("stringId" in response)) {
+    throw new Error("The API returned an invalid paste response.");
+  }
+
+  const stringId = response.stringId;
+
+  if (typeof stringId !== "string" || stringId.length === 0) {
+    throw new Error("The API returned an invalid paste ID.");
+  }
+
+  return stringId;
+}
+
+async function uploadDocument() {
+  const editor = window.activeTextEditor;
+
+  if (!editor) {
+    await window.showErrorMessage("No open text document to upload.");
+    return;
+  }
+
+  const document = editor.document;
+  const currentText = document.getText();
+  const fileName = basename(document.fileName);
+
+  try {
+    const apiUrl = getConfiguredUrl("apiUrl");
+    const responseUrl = getConfiguredUrl("responseUrl");
+    const settings = AuthSettings.instance;
+    const authSecret = await settings.getOrSetAuthSecret();
+
+    if (!authSecret) {
+      return;
+    }
+
+    const form = new FormData();
+    const file = new Blob([currentText], { type: "text/plain" });
+    form.append("paste", file, fileName);
+
+    const headers = { "X-API-Key": authSecret };
+    const signal = AbortSignal.timeout(30_000);
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      body: form,
+      headers,
+      signal,
+      redirect: "error",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed (HTTP ${response.status}). Check your API URL and secret.`);
+    }
+
+    const paste: unknown = await response.json();
+    const stringId = getPasteId(paste);
+    const basePath = responseUrl.pathname.replace(/\/$/, "");
+    const encodedId = encodeURIComponent(stringId);
+    responseUrl.pathname = `${basePath}/${encodedId}`;
+    const fullResponseUrl = responseUrl.toString();
+
+    await env.clipboard.writeText(fullResponseUrl);
+    await window.showInformationMessage("Paste uploaded. Link copied to clipboard.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+    await window.showErrorMessage(message);
+  }
+}
+
+async function setSecret() {
+  const settings = AuthSettings.instance;
+  const authSecret = await settings.inputAuthSecret();
+
+  if (!authSecret) {
+    return;
+  }
+
+  await window.showInformationMessage("Auth secret saved.");
 }
 
 export async function activate(context: ExtensionContext) {
   AuthSettings.init(context);
-  const settings = AuthSettings.instance;
-
-  const registerShare = commands.registerCommand(
-    "sharex-api-uploader.share",
-    async () => {
-      if (!window.activeTextEditor) {
-        window.showErrorMessage("No open text document to upload.");
-        return;
-      }
-
-      const currentText = window.activeTextEditor.document.getText();
-
-      const authSecret = await settings.getOrSetAuthSecret();
-      const apiUrl = workspace.getConfiguration().get<string>("share.apiUrl");
-      const responseUrl = workspace
-        .getConfiguration()
-        .get<string>("share.responseUrl");
-
-      if (!apiUrl) {
-        window.showErrorMessage("API URL is not set.");
-        return false;
-      }
-
-      if (!authSecret) {
-        window.showErrorMessage("Auth secret not set!");
-        return false;
-      }
-
-      if (!responseUrl) {
-        window.showErrorMessage("Response URL is not set.");
-        return false;
-      }
-
-      const form = new FormData();
-
-      form.append(
-        "paste",
-        currentText,
-        window.activeTextEditor.document.fileName
-      );
-
-      try {
-        const res = await got
-          .post(apiUrl, {
-            body: form,
-            headers: {
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              "X-API-Key": authSecret,
-            },
-          })
-          .json<Paste>();
-
-        const { stringId } = res;
-        const fullResponseUrl = `${responseUrl}/${stringId}`;
-
-        env.clipboard.writeText(fullResponseUrl);
-        window.showInformationMessage("Paste uploaded");
-      } catch (err) {
-        window.showErrorMessage(`Error while uploading.\n${err}`);
-      }
-    }
-  );
-
-  const setSecret = commands.registerCommand(
-    "sharex-api-uploader.setSecret",
-    async () => {
-      const authSecret = await settings.inputAuthSecret();
-
-      if (!authSecret) {
-        window.showErrorMessage("Auth secret not set!");
-        return;
-      }
-
-      window.showInformationMessage("Auth secret saved!");
-    }
-  );
-
-  context.subscriptions.push(registerShare);
-  context.subscriptions.push(setSecret);
+  const registerShare = commands.registerCommand("sharex-api-uploader.share", uploadDocument);
+  const registerSecret = commands.registerCommand("sharex-api-uploader.setSecret", setSecret);
+  context.subscriptions.push(registerShare, registerSecret);
 }
 
 export function deactivate() {}

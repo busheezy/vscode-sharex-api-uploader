@@ -1,38 +1,26 @@
-import * as path from 'path';
-import * as Mocha from 'mocha';
-import * as glob from 'glob';
+import * as path from "node:path";
+import Mocha from "mocha";
+import { glob } from "glob";
 
-export function run(): Promise<void> {
-	// Create the mocha test
-	const mocha = new Mocha({
-		ui: 'tdd',
-		color: true
-	});
+export async function run(): Promise<void> {
+  const mocha = new Mocha({ ui: "tdd", color: true });
+  const testsRoot = path.resolve(__dirname, "..");
+  const files = await glob("**/*.test.js", { cwd: testsRoot });
 
-	const testsRoot = path.resolve(__dirname, '..');
+  for (const file of files) {
+    const filePath = path.resolve(testsRoot, file);
+    mocha.addFile(filePath);
+  }
 
-	return new Promise((c, e) => {
-		glob('**/**.test.js', { cwd: testsRoot }, (err, files) => {
-			if (err) {
-				return e(err);
-			}
+  await new Promise<void>((resolve, reject) => {
+    mocha.run((failures) => {
+      if (failures > 0) {
+        const error = new Error(`${failures} tests failed.`);
+        reject(error);
+        return;
+      }
 
-			// Add files to the test suite
-			files.forEach(f => mocha.addFile(path.resolve(testsRoot, f)));
-
-			try {
-				// Run the mocha test
-				mocha.run(failures => {
-					if (failures > 0) {
-						e(new Error(`${failures} tests failed.`));
-					} else {
-						c();
-					}
-				});
-			} catch (err) {
-				console.error(err);
-				e(err);
-			}
-		});
-	});
+      resolve();
+    });
+  });
 }

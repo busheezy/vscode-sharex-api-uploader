@@ -27,6 +27,8 @@ export default class AuthSettings {
     const secretInput = await window.showInputBox({
       title: "Secret",
       prompt: "Enter your API secret.",
+      password: true,
+      ignoreFocusOut: true,
     });
 
     if (!secretInput) {
@@ -43,8 +45,8 @@ export default class AuthSettings {
 
     if (savedAuthSecret) {
       return savedAuthSecret;
-    } else {
-      return this.inputAuthSecret();
     }
+
+    return this.inputAuthSecret();
   }
 }
