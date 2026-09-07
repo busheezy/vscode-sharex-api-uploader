@@ -34,6 +34,22 @@ function getPasteId(response: unknown): string {
   return stringId;
 }
 
+async function copyPasteLink(url: string) {
+  try {
+    await env.clipboard.writeText(url);
+  } catch {
+    await window.showInputBox({
+      title: "Paste uploaded",
+      prompt: "Clipboard unavailable. Copy your uploaded paste link manually.",
+      value: url,
+      ignoreFocusOut: true,
+    });
+    return;
+  }
+
+  await window.showInformationMessage("Paste uploaded. Link copied to clipboard.");
+}
+
 async function uploadDocument() {
   const editor = window.activeTextEditor;
 
@@ -81,8 +97,7 @@ async function uploadDocument() {
     responseUrl.pathname = `${basePath}/${encodedId}`;
     const fullResponseUrl = responseUrl.toString();
 
-    await env.clipboard.writeText(fullResponseUrl);
-    await window.showInformationMessage("Paste uploaded. Link copied to clipboard.");
+    await copyPasteLink(fullResponseUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred.";
     await window.showErrorMessage(message);

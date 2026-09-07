@@ -41,3 +41,5 @@ The Node version above is for development and packaging. The installed extension
 ## License
 
 See [LICENSE.txt](LICENSE.txt).
+
+If uploading succeeds but clipboard access fails, the extension displays the uploaded link in a selectable field so you can copy it manually.
