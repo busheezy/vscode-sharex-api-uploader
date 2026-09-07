@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "nodenext",
     "target": "ES2022",
     "outDir": "out",
     "lib": ["ES2022"],
@@ -8,6 +8,8 @@
     "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "nodenext",
+    "types": ["node", "mocha"]
   }
 }

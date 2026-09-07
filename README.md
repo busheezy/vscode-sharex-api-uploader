@@ -4,7 +4,7 @@ Upload the active text document to your [ShareX API](https://github.com/busheezy
 
 ## Use
 
-Requires VS Code 1.101 or later.
+Requires VS Code 1.136 or later.
 
 1. Set `share.apiUrl` to your paste upload endpoint, for example `https://share.example.com/p`.
 2. Set `share.responseUrl` to your paste viewer base URL, for example `https://paste.example.com`.
@@ -17,11 +17,11 @@ Uploads time out after 30 seconds. Redirects are rejected to avoid forwarding an
 
 ## Development
 
-Use Node.js 24.19+ within 24.x and pnpm 10.34.5.
+Use Node.js 24.19+ within 24.x and pnpm 12.3.4.
 
 ```sh
 nvm use
-npm install --global pnpm@10.34.5
+npm install --global pnpm@12.3.4
 pnpm install --frozen-lockfile
 pnpm check
 pnpm build

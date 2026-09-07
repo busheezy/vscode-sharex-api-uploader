@@ -1,1 +1,1 @@
-onlyBuiltDependencies: ["@vscode/vsce-sign", "keytar"]
+allowBuilds: { "@vscode/vsce-sign": true, "keytar": true }
